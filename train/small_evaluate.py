@@ -39,7 +39,7 @@ data_length = len(valid_data)
 valid_data = data2index(valid_data, train_lang)
 text_generator = evaluate(encoder, decoder, valid_data,
                           train_lang['summary'], embedding_size,
-                          encoder_style=encoder_style, iter_time=2,
+                          encoder_style=encoder_style, iter_time=5,
                           beam_size=1, verbose=False)
 
 # Generate Text

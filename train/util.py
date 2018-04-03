@@ -53,7 +53,7 @@ def showAttention(inputs, outputs, attentions):
         for j, triplet in enumerate(inputs):
             if score[i, j] > max_score[1]:
                 max_score = [triplet, score[i, j]]
-        print('{} <-> {} = {}'.format(text, max_score[0], max_score[1]))
+        print('{} <-> {} = {:0.5f}'.format(text, max_score[0], max_score[1]))
         if text == '.':
             print('')
 

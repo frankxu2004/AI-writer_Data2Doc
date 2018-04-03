@@ -340,15 +340,14 @@ def evaluate(encoder, decoder, valid_set, lang,
             print(res)
         yield res
 
-        # # FOR WRITING REPORTS ONLY
-        # # Compare to the origin data
-        # triplets, gold_summary = data[0]
+        # Compare to the origin data
+        triplets, gold_summary = data[0]
+        print(triplets)
+        for word in gold_summary:
+            print(word, end=' ')
+        print(' ')
 
-        # for word in gold_summary:
-        #     print(word, end=' ')
-        # print(' ')
-
-        # showAttention(triplets, decoded_words, decoder_attentions)
+        showAttention(triplets, decoded_words, decoder_attentions)
 
 
 def showconfig():
