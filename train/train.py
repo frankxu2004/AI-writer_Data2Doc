@@ -21,6 +21,7 @@ from settings import GET_LOSS, SAVE_MODEL, OUTPUT_FILE
 SOS_TOKEN = 0
 EOS_TOKEN = 1
 
+
 # TODO: Extend the model to copy-based model
 
 
@@ -42,7 +43,7 @@ def get_batch(batch):
     max_summary_length = 0
     for d in batch:
         idx_data = [[], [], []]  # for each triplet
-        batch_data.append(d[:2]) # keep the original data/ not indexed version
+        batch_data.append(d[:2])  # keep the original data/ not indexed version
         for triplets in d[2][0]:
             for idt, t in enumerate(triplets):
                 idx_data[idt].append(t)
@@ -69,7 +70,6 @@ def sentenceloss(rt, re, rm, summary, encoder, decoder,
     """
     # Zero the gradient
     loss_optimizer.zero_grad()
-
     batch_length = rt.size()[0]
     input_length = rt.size()[1]
     target_length = summary.size()[1]
@@ -91,12 +91,12 @@ def sentenceloss(rt, re, rm, summary, encoder, decoder,
     else:
         encoder_hidden = encoder.initHidden(batch_length)
         out, encoder_hidden = encoder(rt, re, rm, encoder_hidden)
-        
+
         # Store memory information
-        encoder_outputs = out.permute(1,0,2)
+        encoder_outputs = out.permute(1, 0, 2)
 
     decoder_hidden = decoder.initHidden(batch_length)
-    decoder_hidden[0,:,:] = out[-1,:] # might be zero
+    decoder_hidden[0, :, :] = out[-1, :]  # might be zero
     decoder_input = Variable(torch.LongTensor(batch_length).zero_(), requires_grad=False)
     decoder_input = decoder_input.cuda() if use_cuda else decoder_input
 
@@ -137,7 +137,6 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
     # Set the timer
     start = time.time()
 
-
     # Initialize the model
     emb = docEmbedding(langs['rt'].n_words, langs['re'].n_words,
                        langs['rm'].n_words, embedding_size)
@@ -162,8 +161,9 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
         decoder = load_model(decoder, use_model[1])
 
     # Choose optimizer
-    loss_optimizer = optim.Adagrad(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate, lr_decay=0, weight_decay=0)
-    #decoder_optimizer = optim.Adagrad(decoder.parameters(), lr=learning_rate, lr_decay=0, weight_decay=0)
+    loss_optimizer = optim.Adagrad(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate,
+                                   lr_decay=0, weight_decay=0)
+    # decoder_optimizer = optim.Adagrad(decoder.parameters(), lr=learning_rate, lr_decay=0, weight_decay=0)
 
     criterion = nn.NLLLoss()
 
@@ -178,13 +178,13 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
             iteration += 1
             data, idx_data = get_batch(dt)
             rt, re, rm, summary = idx_data
-        
+
             # Add paddings
             rt = addpaddings(rt)
             re = addpaddings(re)
             rm = addpaddings(rm)
             summary = addpaddings(summary)
-        
+
             rt = Variable(torch.LongTensor(rt), requires_grad=False)
             re = Variable(torch.LongTensor(re), requires_grad=False)
             rm = Variable(torch.LongTensor(rm), requires_grad=False)
@@ -197,8 +197,8 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
 
             # Get the average loss on the sentences
             loss = sentenceloss(rt, re, rm, summary, encoder, decoder,
-                            loss_optimizer, criterion,
-                            embedding_size, encoder_style)
+                                loss_optimizer, criterion,
+                                embedding_size, encoder_style)
             total_loss += loss
 
             # Print the information and save model
@@ -211,13 +211,13 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
             torch.save(encoder.state_dict(), "{}_encoder_{}".format(OUTPUT_FILE, iteration))
             torch.save(decoder.state_dict(), "{}_decoder_{}".format(OUTPUT_FILE, iteration))
             print("Save the model at iter {}".format(iteration))
-    
+
     return encoder, decoder
 
 
-def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
+def predictwords(rt, re, rm, encoder, decoder, lang, embedding_size,
                  encoder_style, beam_size):
-    """The function will predict the sentecnes given boxscore.
+    """The function will predict the sentences given boxscore.
 
     Encode the given box score, decode it to sentences, and then
     return the prediction and attention matrix.
@@ -229,10 +229,8 @@ def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
     input_length = rt.size()[1]
     target_length = 1000
 
-    encoder_outputs = Variable(torch.zeros(batch_length, MAX_LENGTH, embedding_size))
+    encoder_outputs = Variable(torch.zeros(batch_length, input_length, embedding_size))
     encoder_outputs = encoder_outputs.cuda() if use_cuda else encoder_outputs
-
-    encoder_hidden = encoder.initHidden(batch_length)
 
     # Encoding
     if encoder_style == 'BiLSTM':
@@ -245,13 +243,12 @@ def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
 
     else:
         encoder_hidden = encoder.initHidden(batch_length)
-        for ei in range(input_length):
-            encoder_hidden = encoder(rt[:, ei], re[:, ei], rm[:, ei], encoder_hidden)
+        out, encoder_hidden = encoder(rt, re, rm, encoder_hidden)
 
-            # Store memory information
-            encoder_outputs[:, ei] = encoder_hidden
+        # Store memory information
+        encoder_outputs = out.permute(1, 0, 2)
 
-    decoder_attentions = torch.zeros(target_length, MAX_LENGTH)
+    decoder_attentions = torch.zeros(target_length, input_length)
 
     # Initialize the Beam
     # Each Beam cell contains [prob, route, decoder_hidden, atten]
@@ -267,7 +264,7 @@ def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
             prob, route, decoder_hidden, atten = beam
             destination = len(route) - 1
 
-            # Get the lastest predecition
+            # Get the last prediction
             decoder_input = route[-1]
 
             # If <EOS>, do not search for it
@@ -280,7 +277,6 @@ def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
 
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
-
             # Get the attention vector at each prediction
             atten[destination] = decoder_attention.data[0][0]
 
@@ -300,7 +296,7 @@ def predictwords(rt, re, rm, summary, encoder, decoder, lang, embedding_size,
         if beams[0][1][-1] == 1:
             break
 
-    # Get decoded_words and decoder_attetntions
+    # Get decoded_words and decoder_attentions
     decoded_words = [lang.index2word[w] for w in beams[0][1][1:]]
     decoder_attentions = beams[0][3]
     return decoded_words, decoder_attentions[:len(decoded_words)]
@@ -311,7 +307,7 @@ def evaluate(encoder, decoder, valid_set, lang,
              beam_size=1, verbose=True):
     """The evaluate procedure."""
     # Get evaluate data
-    valid_iter = data_iter(valid_set, batch_size=1, shuffle=True)
+    valid_iter = data_iter(valid_set, batch_size=1, shuffle=False)
     if use_cuda:
         encoder.cuda()
         decoder.cuda()
@@ -334,7 +330,7 @@ def evaluate(encoder, decoder, valid_set, lang,
             rt, re, rm, summary = rt.cuda(), re.cuda(), rm.cuda(), summary.cuda()
 
         # Get decoding words and attention matrix
-        decoded_words, decoder_attentions = predictwords(rt, re, rm, summary,
+        decoded_words, decoder_attentions = predictwords(rt, re, rm,
                                                          encoder, decoder, lang,
                                                          embedding_size, encoder_style,
                                                          beam_size)

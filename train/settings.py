@@ -1,6 +1,6 @@
 """The file contains name settings."""
 import torch
-file_loc = '../boxscore-data/rotowire/'
+file_loc = '../boxscore-data/roto-split/'
 use_cuda = torch.cuda.is_available()
 MAX_LENGTH = 664
 LAYER_DEPTH = 2
@@ -20,4 +20,3 @@ SAVE_MODEL = 10
 # ENCODER_STYLE = 'BiLSTM'
 ENCODER_STYLE = 'RNN'
 OUTPUT_FILE = 'decoupled'
-USE_MODEL = None

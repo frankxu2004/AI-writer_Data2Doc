@@ -1,5 +1,5 @@
 """This is the module for preparing data."""
-from preprocessing import readfile
+from preprocessing import readfile, readfile_splitted
 from settings import file_loc, MAX_SENTENCES
 
 
@@ -9,7 +9,7 @@ class Lang:
     This class will build three dicts:
     word2index, word2count, and index2word for
     embedding information. Once a set of data is
-    encoded, we can transform it to corrsponding
+    encoded, we can transform it to corresponding
     indexing use the word2index, and map it back
     using index2word.
 
@@ -42,12 +42,12 @@ class Lang:
 def readLang(data_set):
     """The function to wrap up a data_set.
 
-    This funtion will wrap up a extracted data_set
-    into word2index inforamtion. The data set should
+    This function will wrap up a extracted data_set
+    into word2index information. The data set should
     be a list of tuples containing ([triplets], summarize).
 
     Args:
-        data_set: A list of tuples containig 2 items.
+        data_set: A list of tuples containing 2 items.
 
     Returns:
         4 Langs for (r.t, r.e, r.m, 'summary')
@@ -83,7 +83,7 @@ def loaddata(data_dir, mode='train'):
     Returns:
         A list of reading dataset and a dictionary of Langs
     """
-    data_set = readfile(data_dir + mode + '.json')
+    data_set = readfile_splitted(data_dir + mode + '.json')
 
     rt, re, rm, summary = readLang(data_set)
 

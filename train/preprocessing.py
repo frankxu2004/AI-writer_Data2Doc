@@ -89,6 +89,16 @@ def readfile(filename):
     return result
 
 
+def readfile_splitted(filename):
+    result = []
+    with open(filename, 'r') as f:
+        data = json.load(f)
+        for d in data:
+            d['tokens'].append('<EOS>')
+            result.append([d['triples'], d['tokens']])
+    return result
+
+
 def data_iter(source, batch_size=32, shuffle=True):
     """The iterator to give batch data while training.
 

@@ -58,6 +58,7 @@ class EncoderLIN(nn.Module):
     to initialize the decoder.
 
     """
+
     def __init__(self, hidden_size, embedding_layer):
         super(EncoderLIN, self).__init__()
         self.hidden_size = hidden_size
@@ -80,6 +81,7 @@ class EncoderLIN(nn.Module):
 
 class EncoderRNN(nn.Module):
     """Vanilla encoder using pure gru."""
+
     def __init__(self, hidden_size, embedding_layer, n_layers=LAYER_DEPTH):
         super(EncoderRNN, self).__init__()
         self.n_layers = n_layers
@@ -92,15 +94,15 @@ class EncoderRNN(nn.Module):
         embedded = self.embedding(rt, re, rm)
         # embedded is of size (n_batch, seq_len, emb_dim)
         # gru needs (seq_len, n_batch, emb_dim)
-        inp = embedded.permute(1,0,2)
+        inp = embedded.permute(1, 0, 2)
         output, hidden = self.gru(inp, hidden)
 
         return output, hidden
 
     def initHidden(self, batch_size):
-        result = Variable(torch.zeros(self.n_layers, batch_size, self.hidden_size),requires_grad=False)
+        result = Variable(torch.zeros(self.n_layers, batch_size, self.hidden_size), requires_grad=False)
 
-        if use_cuda:            
+        if use_cuda:
             return result.cuda()
         else:
             return result
@@ -108,6 +110,7 @@ class EncoderRNN(nn.Module):
 
 class EncoderBiLSTM(nn.Module):
     """Vanilla encoder using pure LSTM."""
+
     def __init__(self, hidden_size, embedding_layer, n_layers=LAYER_DEPTH):
         super(EncoderBiLSTM, self).__init__()
         self.n_layers = n_layers
@@ -119,7 +122,7 @@ class EncoderBiLSTM(nn.Module):
     def forward(self, rt, re, rm, hidden):
         embedded = self.embedding(rt, re, rm)
         embedded = torch.transpose(embedded, 0, 1)
-        bilstm_outs, self.hidden = self.bilstm(embedded, hidden)
+        bilstm_outs, _ = self.bilstm(embedded, hidden)
 
         output = torch.transpose(bilstm_outs, 0, 1)
         output = torch.transpose(output, 1, 2)
@@ -132,9 +135,9 @@ class EncoderBiLSTM(nn.Module):
         forward = Variable(torch.zeros(2 * self.n_layers, batch_size, self.hidden_size // 2))
         backward = Variable(torch.zeros(2 * self.n_layers, batch_size, self.hidden_size // 2))
         if use_cuda:
-            return (forward.cuda(), backward.cuda())
+            return forward.cuda(), backward.cuda()
         else:
-            return (forward, backward)
+            return forward, backward
 
 
 class AttnDecoderRNN(nn.Module):
@@ -150,22 +153,21 @@ class AttnDecoderRNN(nn.Module):
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
-        #self.grus = []
+        # self.grus = []
         for i in range(self.n_layers):
-            #self.grus.append(nn.GRUCell(hidden_size, hidden_size))
-            self.add_module("gru"+str(i),nn.GRUCell(hidden_size, hidden_size))
+            # self.grus.append(nn.GRUCell(hidden_size, hidden_size))
+            self.add_module("gru" + str(i), nn.GRUCell(hidden_size, hidden_size))
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
     def forward(self, input, hidden, encoder_outputs):
         embedded = self.embedding(input)
         embedded = self.dropout(embedded)
-
-        #inp = embedded.permute(1,0,2)
+        # inp = embedded.permute(1,0,2)
         attn_weights = F.softmax(
-            self.attn(torch.cat((embedded, hidden[-1,:,:]), dim=1)))
-        
+            self.attn(torch.cat((embedded, hidden[-1, :, :]), dim=1)))
+
         attn_weights = attn_weights.unsqueeze(1)
-        attn_weights = attn_weights[:,:,:encoder_outputs.size()[1]]
+        attn_weights = attn_weights[:, :, :encoder_outputs.size()[1]]
 
         attn_applied = torch.bmm(attn_weights, encoder_outputs)
         attn_applied = attn_applied.squeeze(1)
@@ -176,9 +178,9 @@ class AttnDecoderRNN(nn.Module):
         nh = Variable(torch.zeros(hidden.size()), requires_grad=False).cuda()
 
         for i in range(self.n_layers):
-            layer_fnc = getattr(self, "gru"+str(i))
-            output = layer_fnc(output, hidden[i,:,:])
-            nh[i,:,:] = output
+            layer_fnc = getattr(self, "gru" + str(i))
+            output = layer_fnc(output, hidden[i, :, :])
+            nh[i, :, :] = output
 
         output = F.log_softmax(self.out(output))
         return output, nh, attn_weights
