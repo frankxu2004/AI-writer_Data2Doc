@@ -206,7 +206,6 @@ def train(train_set, langs, embedding_size=600, learning_rate=0.01,
                 print("Time {}, iter {}, avg loss = {:.4f}".format(
                     gettime(start), iteration, total_loss / get_loss))
                 total_loss = 0
-
         if epo % save_model == 0:
             torch.save(encoder.state_dict(), "{}_encoder_{}".format(OUTPUT_FILE, iteration))
             torch.save(decoder.state_dict(), "{}_decoder_{}".format(OUTPUT_FILE, iteration))
@@ -253,7 +252,7 @@ def predictwords(rt, re, rm, encoder, decoder, lang, embedding_size,
     # Initialize the Beam
     # Each Beam cell contains [prob, route, decoder_hidden, atten]
     beams = [[0, [SOS_TOKEN], encoder_hidden, decoder_attentions]]
-
+    
     # For each step
     for di in range(target_length):
 
@@ -278,7 +277,7 @@ def predictwords(rt, re, rm, encoder, decoder, lang, embedding_size,
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
             # Get the attention vector at each prediction
-            atten[destination] = decoder_attention.data[0][0]
+            atten[destination,:decoder_attention.shape[2]] = decoder_attention.data[0,0,:]
 
             # decode the word
             topv, topi = decoder_output.data.topk(beam_size)
